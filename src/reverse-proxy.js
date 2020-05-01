@@ -55,10 +55,10 @@ module.exports = function (req, res) {
         if (token.sim_error) {
             return res.status(401).send(token.sim_error);
         }
-    } else if (!req.url.match(/^\/metadata/)) {
-        return res.status(401).send({
-            error: 'Missing authorization header'
-        });
+//    } else if (!req.url.match(/^\/metadata/)) {
+//        return res.status(401).send({
+//            error: 'Missing authorization header'
+//        });
     }
 
     // set everything to JSON since we don't currently support XML and block XML
