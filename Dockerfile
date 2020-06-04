@@ -24,6 +24,7 @@ ENV PICKER_ORIGIN "https://patient-browser.smarthealthit.org"
 # Install and cache
 COPY package.json      /tmp/package.json
 COPY package-lock.json /tmp/package-lock.json
+COPY /src/idp-signing.pem /app/src
 RUN cd /tmp && npm install --production
 RUN mv /tmp/node_modules /app/node_modules
 

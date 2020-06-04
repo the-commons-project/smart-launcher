@@ -160,7 +160,7 @@ app.use(
     ],
     bodyParser.text({ type: "*/*", limit: 1e6 }),
     handleParseError,
-    simpleProxy
+    reverseProxy
 );
 
 app.get("/launcher", launcher);

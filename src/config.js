@@ -32,7 +32,7 @@ module.exports = {
   authBaseUrl          : process.env.AUTH_BASE_URL || "/auth",
   fhirBaseUrl          : process.env.FHIR_BASE_URL || "/fhir",
   protectedSandboxWords: (process.env.PROTECTED_SANDBOX_WORDS || "smart,synthea,pro").split(","),
-  jwtSecret            : process.env.SECRET || "thisisasecret",
+  jwtSecret            : "GU6fIcDAHM5FK36HpLyTsBKsFkZUFTVjEiPrI2mJ",
   port                 : PORT,
   host                 : HOST,
   accessTokenLifetime  : process.env.ACCESS_TOKEN_LIFETIME || 60, // minutes
