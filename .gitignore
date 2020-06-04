@@ -9,3 +9,5 @@ selenium-debug.log
 .vscode
 coverage
 .nyc_output
+
+.idea

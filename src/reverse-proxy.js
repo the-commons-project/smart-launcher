@@ -1,14 +1,14 @@
-const request    = require("request");
-const jwt        = require("jsonwebtoken");
-const config     = require("./config");
-const fhirError  = require("./fhir-error");
+const request = require("request");
+const jwt = require("jsonwebtoken");
+const config = require("./config");
+const fhirError = require("./fhir-error");
 const patientMap = require("./patient-compartment");
-const Lib        = require("./lib");
+const Lib = require("./lib");
 require("colors");
 
 // Pre-define any RegExp as global to improve performance
 const RE_RESOURCE_SLASH_ID = new RegExp(
-    "([A-Z]\\w+)"     + // Resource type
+    "([A-Z]\\w+)" + // Resource type
     "(\\/([^\\/?]+))" + // Resource ID
     "\\/?(\\?|$)"       // Anything after (like a query string)
 );
@@ -36,19 +36,25 @@ module.exports = function (req, res) {
             error: `FHIR server ${req.params.fhir_release} not found`
         });
     }
-    
+
     // only allow gets to blacklisted sandboxes (like the SMART default patients)
     if (req.method != "GET" && !req.url.endsWith("/_search") && (
         !sandboxes ||
-        config.protectedSandboxWords.find( w => sandboxes[0].toLowerCase().indexOf(w) != -1 )
-    )) {
-        return res.status(401).send( fhirError("You do not have permission to modify this sandbox") );
+        config.protectedSandboxWords.find(w => sandboxes[0].toLowerCase().indexOf(w) != -1 )
+    ))
+    {
+        return res.status(401).send(fhirError("You do not have permission to modify this sandbox"));
     }
 
     // require a valid auth token for all endpoints except /metadata
     if (req.headers.authorization) {
         try {
-            token = jwt.verify(req.headers.authorization.split(" ")[1], config.jwtSecret);
+            const fs = require('fs');
+            var decoded = jwt.decode(req.headers.authorization.split(" ")[1],{algorithms: ['RS256']});
+            var provided = req.headers.authorization.split(" ")[1];
+            var cert = fs.readFileSync('/app/src/idp-signing.pem');  // get public key
+            token = jwt.verify(provided, cert,{algorithms: ['RS256']});
+            //token = jwt.verify(req.headers.authorization.split(" ")[1], cert, {algorithms: ['RS256']});
         } catch (e) {
             return res.status(401).send(`${e.name || "Error"}: ${e.message || "Invalid token"}`);
         }
@@ -66,11 +72,11 @@ module.exports = function (req, res) {
     let fhirRequest = {
         headers: {
             "content-type": "application/json",
-            "accept"      : req.params.fhir_release.toUpperCase() == "R2" ? "application/json+fhir" : "application/fhir+json"
+            "accept": req.params.fhir_release.toUpperCase() == "R2" ? "application/json+fhir" : "application/fhir+json"
         },
         method: req.method
     }
-    
+
     // inject sandbox tag into POST and PUT requests and make urls conditional
     // -------------------------------------------------------------------------
     if (isSearchPost) {
@@ -113,7 +119,7 @@ module.exports = function (req, res) {
         console.log("PROXY: " + fhirRequest.url, fhirRequest);
     }
 
-    request(fhirRequest, function(error, response, body) {
+    request(fhirRequest, function (error, response, body) {
         if (error) {
             // res.status(500)
             // res.type("application/json")
@@ -121,7 +127,7 @@ module.exports = function (req, res) {
         }
         res.status(response.statusCode);
         response.headers['content-type'] && res.type(response.headers['content-type']);
-     
+
         // adjust urls in the fhir response so future requests will hit the proxy
         if (body) {
             let requestUrl = Lib.buildUrlPath(config.baseUrl, req.originalUrl);
@@ -144,7 +150,7 @@ module.exports = function (req, res) {
         }
 
         // pull the resource out of the bundle if we converted a /id url into a ?_id= query
-        if (req.method =="GET" && RE_RESOURCE_SLASH_ID.test(req.url) && typeof body == "string" && body.indexOf("Bundle") != -1) {
+        if (req.method == "GET" && RE_RESOURCE_SLASH_ID.test(req.url) && typeof body == "string" && body.indexOf("Bundle") != -1) {
             body = Lib.unBundleResource(body);
             if (!body) {
                 res.status(404);
@@ -163,7 +169,7 @@ module.exports = function (req, res) {
             body = `<html><body><pre>${Lib.htmlEncode(body)}</pre></body></html>`;
             res.type("html");
         }
-        
+
         if (logTime) {
             console.log(
                 ("Reverse Proxy: ".bold + fhirRequest.url + " -> ").cyan +
@@ -173,5 +179,5 @@ module.exports = function (req, res) {
 
         res.send(body);
     });
-    
+
 };
