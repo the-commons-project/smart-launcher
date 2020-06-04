@@ -2,15 +2,11 @@ const express        = require("express");
 const cors           = require("cors");
 const bodyParser     = require('body-parser');
 const fs             = require("fs");
-const base64url      = require("base64-url");
-const smartAuth      = require("./smart-auth");
-const reverseProxy   = require("./reverse-proxy");
-const simpleProxy    = require("./simple-proxy");
 const config         = require("./config");
 const generator      = require("./generator");
 const lib            = require("./lib");
 const launcher       = require("./launcher");
-const wellKnownSmart = require("./wellKnownSmartConfiguration");
+const reverseProxy   = require("./reverse-proxy");
 
 
 const handleParseError = function(err, req, res, next) {
@@ -83,19 +79,6 @@ if (IP_BLACK_LIST.length) {
 //reject xml
 app.use(handleXmlRequest);
 
-//provide oidc keys when requested
-app.get("/.well-known/openid-configuration/", (req, res) => {
-    res.json({"jwks_uri": `${config.baseUrl}/keys`})
-});
-
-app.get("/keys", (req, res) => {
-    let key = {}
-    Object.keys(config.oidcKeypair).forEach(p => {
-        if (p != "d") key[p] = config.oidcKeypair[p];
-    });
-    res.json({"keys":[key]})
-});
-
 const buildRoutePermutations = (lastSegment) => {
     return [
         "/v/:fhir_release/sb/:sandbox/sim/:sim" + lastSegment,
@@ -105,66 +88,15 @@ const buildRoutePermutations = (lastSegment) => {
     ];
 }
 
-// Well-known SMART Configuration
-app.get(buildRoutePermutations(
-    `${config.fhirBaseUrl}/.well-known/smart-configuration`),
-    wellKnownSmart
-);
-
-// picker
-app.get(buildRoutePermutations("/picker"), (req, res) => {
-    res.sendFile("picker.html", {root: './static'});
-});
-
-// encounter picker
-app.get(buildRoutePermutations("/encounter"), (req, res) => {
-    res.sendFile("encounter-picker.html", {root: './static'});
-});
-
-// login
-app.get(buildRoutePermutations("/login"), (req, res) => {
-    res.sendFile("login.html", {root: './static'});
-});
-
-// authorize
-app.get(buildRoutePermutations("/authorize"), (req, res) => {
-    res.sendFile("authorize.html", {root: './static'});
-});
-
-// auth request
-app.use(buildRoutePermutations(config.authBaseUrl), smartAuth)
-
-// Provide launch_id if the CDS Sandbox asks for it
-app.post(buildRoutePermutations("/fhir/_services/smart/launch"), bodyParser.json(), (req, res) => {
-    res.json({
-        launch_id: base64url.encode(JSON.stringify({"context": req.body.parameters || {}}))
-    });
-});
-
-// fhir request using sandboxes (tags)
-app.use(
-    [
-        `/v/:fhir_release/sb/:sandbox/sim/:sim${config.fhirBaseUrl}`,
-        `/v/:fhir_release/sb/:sandbox${config.fhirBaseUrl}`
-    ],
-    bodyParser.text({ type: "*/*", limit: 1e6 }),
-    handleParseError,
-    reverseProxy
-);
-
 // fhir request - no sandboxes - fast streaming proxy
 app.use(
     [
-        `/v/:fhir_release/sim/:sim${config.fhirBaseUrl}`,
         `/v/:fhir_release${config.fhirBaseUrl}`
     ],
     bodyParser.text({ type: "*/*", limit: 1e6 }),
     handleParseError,
     reverseProxy
 );
-
-app.get("/launcher", launcher);
-app.use("/generator", generator);
 
 app.use("/env.js", (req, res) => {
     const out = {
